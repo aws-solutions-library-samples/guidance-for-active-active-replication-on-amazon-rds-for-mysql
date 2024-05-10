@@ -489,8 +489,8 @@ With the above steps, you have successfully uninstalled the Active/Active replic
 
 The following individuals and organizations contributed to this document:
 
-**Baruch Assif Osoveskiy**, Senior Data Solutions Architect, Amazon Web Services
-**Vijay Karumajji**, Principal DB Specialist Solutions Architect, Amazon Web Services
+* **Baruch Assif Osoveskiy**, Senior Data Solutions Architect, Amazon Web Services
+* **Vijay Karumajji**, Principal DB Specialist Solutions Architect, Amazon Web Services
 
 ## Notices
 
