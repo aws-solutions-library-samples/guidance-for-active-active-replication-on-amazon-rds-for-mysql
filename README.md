@@ -9,8 +9,7 @@
     - [Network Prerequisites](#network-prerequisites)
 3. [Deployment Steps](#deployment-steps)
 4. [Deployment Validation](#deployment-validation)
-5. [Next Steps](#next-steps)
-6. [Cleanup](#cleanup)
+5. [Cleanup](#cleanup)
 
 ## Overview
 
@@ -476,7 +475,7 @@ To uninstall, you must delete all the AWS CloudFormation stacks (`RDS-MySQL-DB-p
 Determine whether the AWS Command Line Interface (AWS CLI) is available in your environment. For installation instructions, see [What Is the AWS Command Line Interface in the AWS CLI User Guide](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html). After confirming that the AWS CLI is available, use the following command and provide --stackname
 
  ```bash
-$ aws cloudformation delete-stack --stack-name <installation-stack-name>
+aws cloudformation delete-stack --stack-name <installation-stack-name>
 ```
 
 Deleting the CloudFormation stack, deletes all the resources provisioned as part of the deployment.
