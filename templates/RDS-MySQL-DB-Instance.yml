@@ -1,0 +1,440 @@
+---
+## Amazon RDS for MySQL Group replication Template
+## Infrastructure template for lab exercises
+##
+## Changelog:
+## 2024-03-20 - Add group replication support 
+## Dependencies:
+## none
+##
+## License:
+## This sample code is made available under the MIT-0 license. See the LICENSE file.
+
+
+AWSTemplateFormatVersion: '2010-09-09'
+#Transform: 'AWS::LanguageExtensions'
+Description: 'CloudFormation Template to create RDS MySQL DB Instance'
+
+# Parameters 
+Parameters:
+
+  DBSnapshotName:
+    Description: Optional. DB Snapshot ID to restore database. Leave this blank if you are not restoring from a snapshot.
+    Type: String
+    Default: ""
+
+  MySQLDBParameterGroup:
+    Type: String
+    Description: 'Provide The name of the database parameter group'
+   
+  MySQLSecret:
+    Description: 'Provide the ARN of MySQL Secret.Secret need contain password and username keys'
+    Type: String
+
+  SecurityGroupIds:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    Description: The ID of the security groups to associate with the instance.
+ 
+  DBSubnetGroupName:
+    Type: String
+    Description: 'Provide The name of the database subnet group'
+
+  RDSKMSCMK:
+    Type: String
+    Description: 'The ARN of the AWS KMS key thats used to encrypt the DB instance if '
+    Default: AWS::NoValue
+
+  DBName:
+    Description: 'Database Name - must start with a letter. Only numbers, letters, and _ accepted. max length 64 characters'
+    Type: String
+    Default: 'mydb'
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: "^[a-zA-Z]+[0-9a-zA-Z_]*$" 
+    ConstraintDescription: Must start with a letter. Only numbers, letters, and _ accepted. max length 64 characters 
+
+  GroupReplicationName:
+    Description: Group replication name - must Be UUID v4 . Only numbers, letters, and - accepted. max length 36 characters
+    Type: String
+    Default: 9510b991-99b4-11ee-8669-0a9258440a9f
+    MinLength: '36'
+    MaxLength: '36'
+    ConstraintDescription: must Be UUID v4 . Only numbers, letters, and - accepted. max length 36 characters
+
+  DBPort:
+    Description: TCP/IP Port for the Database Instance
+    Type: Number
+    Default: 3306
+    ConstraintDescription: 'Must be in the range [1115-65535]'
+    MinValue: 1115
+    MaxValue: 65535
+       
+  DBEngineVersion:
+    Description: 'Select Database Engine Version'
+    Type: String
+    Default: '8.0.35'
+    AllowedValues: ['8.0.35', '8.0.36']
+     
+  DBInstanceClass:
+    Description: 'Database Instance Class'
+    Type: String
+    Default: db.r6g.large
+    AllowedValues:
+    - db.r6g.large
+    - db.r6g.xlarge
+    - db.r6g.2xlarge
+    - db.r6g.4xlarge
+    - db.r6g.8xlarge
+    - db.r6g.12xlarge
+
+  DBAllocatedStorage:
+    Description: 'The allocated storage size, specified in GB'
+    Type: Number
+    Default: 100
+    MinValue: 5
+    MaxValue: 16384
+
+  EnvironmentStage:
+    Type: String
+    Description: 'The environment tag is used to designate the Environment Stage of the associated AWS resource. Pre-prod and Prod will create read-replicas.'
+    AllowedValues:
+      - dev
+      - test
+      - pre-prod
+      - prod
+    Default: prod
+  NotificationEmailAddress: 
+    Description: EventBridge Notification Email address
+    Type: String
+    Default: 'user@mail.com'
+    MinLength: '1'
+
+
+#meta  
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: 'Environment'
+        Parameters:
+          - EnvironmentStage
+      -
+        Label:
+          default: 'General DB Parameters Non Default'
+        Parameters:
+          - DBSnapshotName
+          - SecurityGroupIds
+          - MySQLDBParameterGroup
+          - DBSubnetGroupName
+          - NotificationEmailAddress
+      - 
+        Label:
+          default: 'General DB Parameters Default'
+        Parameters: 
+          - DBInstanceClass
+          - GroupReplicationName
+          - DBPort
+      -
+        Label:
+          default: 'New DB instance Parameters (If Not recover from Snapshot) '
+        Parameters:
+          - DBName
+          - MySQLSecret
+          - DBAllocatedStorage
+          - DBEngineVersion
+          - RDSKMSCMK
+
+
+# Conditions
+Conditions:
+  IsUseDBSnapshot: !Not [!Equals [!Ref DBSnapshotName, ""]]
+  IsNotUseDBSnapshot: !Not [Condition: IsUseDBSnapshot]
+  IsProd: !Equals [!Ref EnvironmentStage, 'prod']
+  DBMultiAZ: !Or [!Equals [!Ref EnvironmentStage, 'pre-prod'], Condition: IsProd]
+  
+# Resources     
+Resources:
+# IAM role for monitoring 
+  MonitoringIAMRole: 
+    Type: AWS::IAM::Role
+    Condition: IsProd
+    Properties: 
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - "monitoring.rds.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns: 
+        - arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
+        
+
+# RDS instances
+  ReplicaInstance:
+    Type: AWS::RDS::DBInstance
+    # checkov:skip=CKV_AWS_157:if Prod will have MAZ
+    # checkov:skip=CKV_AWS_16:this is the default 
+    # checkov:skip=CKV_AWS_161:Custom resource. no need IAM auto can be update later by the user 
+    # checkov:skip=CKV_AWS_118:Custom resource user can control enhanced monitoring 
+    Properties:
+      DBSnapshotIdentifier: !If [IsUseDBSnapshot, !Ref DBSnapshotName, !Ref "AWS::NoValue"]
+      AllocatedStorage: !If [IsUseDBSnapshot, !Ref 'AWS::NoValue', !Ref DBAllocatedStorage]
+      KmsKeyId: !If [IsNotUseDBSnapshot, !Ref RDSKMSCMK, !Ref 'AWS::NoValue']
+      AllowMajorVersionUpgrade: false
+      AutoMinorVersionUpgrade: !If [IsProd, 'false', 'true']
+      BackupRetentionPeriod: !If [IsProd, 35, 7]
+      CopyTagsToSnapshot: true
+      DBInstanceClass: !Ref DBInstanceClass
+      DBName: !If [IsUseDBSnapshot, !Ref "AWS::NoValue", !Ref DBName]
+      DBParameterGroupName: !Ref MySQLDBParameterGroup
+      DBSubnetGroupName: !Ref DBSubnetGroupName
+      EnableIAMDatabaseAuthentication: false
+      EnablePerformanceInsights: true
+      Engine: mysql
+      EngineVersion: !Ref DBEngineVersion
+      MasterUsername: !If [IsUseDBSnapshot, !Ref "AWS::NoValue", !Join ["", ["{{resolve:secretsmanager:", !Ref MySQLSecret, ":SecretString:username}}" ]]]
+      MasterUserPassword: !If [IsUseDBSnapshot, !Ref "AWS::NoValue", !Join ["", ["{{resolve:secretsmanager:", !Ref MySQLSecret, ":SecretString:password}}" ]]]
+      MonitoringInterval: !If [IsProd, 1, 0]
+      MonitoringRoleArn: !If [IsProd, !GetAtt MonitoringIAMRole.Arn, !Ref "AWS::NoValue"]
+      MultiAZ: !If [DBMultiAZ, true, false]
+      Port: !Ref DBPort
+      PubliclyAccessible: false
+      StorageEncrypted:  !If [IsUseDBSnapshot, !Ref "AWS::NoValue", true]
+      DeletionProtection: true
+      VPCSecurityGroups: !Ref SecurityGroupIds
+      Tags:
+        - Key: Name
+          Value: !Sub replicainstance-${AWS::StackName}
+        - Key: GroupReplicationName
+          Value: !Ref GroupReplicationName
+
+
+# event bridge to handle unplanned failover
+
+  SNSTopic: 
+    Type: AWS::SNS::Topic
+    # checkov:skip=CKV_AWS_26:enc by default 
+    Properties: 
+      Subscription: 
+        - Endpoint: !Ref NotificationEmailAddress
+          Protocol: "email"
+
+# Lambda function to handle both planned and unplanned failovers.
+
+
+  DBFailoverLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Path: /
+      Policies:
+        - PolicyName: lambda-allow-cloudf-rds
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudwatch:ListDashboards
+                  - cloudwatch:ListMetrics
+                  - cloudwatch:ListMetricStreams
+                  - cloudwatch:ListServiceLevelObjectives
+                  - cloudwatch:ListServices
+                  - cloudwatch:ListTagsForResource
+                  - cloudwatch:BatchGetServiceLevelIndicatorReport
+                  - cloudwatch:BatchGetServiceLevelObjectiveBudgetReport
+                  - cloudwatch:ListManagedInsightRules
+                  - cloudwatch:GetTopologyMap
+                  - cloudwatch:GetTopologyDiscoveryStatus
+                  - cloudwatch:GetServiceLevelObjective
+                  - cloudwatch:DescribeAlarmHistory
+                  - cloudwatch:DescribeAlarms
+                  - cloudwatch:DescribeAlarmsForMetric
+                  - cloudwatch:GetServiceData
+                  - cloudwatch:GetService
+                  - cloudwatch:GetMetricWidgetImage
+                  - cloudwatch:GetMetricStream
+                  - cloudwatch:GetMetricStatistics
+                  - cloudwatch:GetMetricData
+                  - cloudwatch:GetInsightRuleReport
+                  - cloudwatch:GetDashboard
+                  - cloudwatch:GenerateQuery
+                  - cloudwatch:DescribeInsightRules
+                  - cloudwatch:DescribeAnomalyDetectors
+                  - rds:DescribeAccountAttributes
+                  - rds:DescribeDBInstanceAutomatedBackups
+                  - rds:DescribeDBEngineVersions
+                  - rds:DescribeDBClusterSnapshots
+                  - rds:DescribeDBClusterSnapshotAttributes
+                  - rds:DescribeDBClusters
+                  - rds:DescribeDBClusterParameters
+                  - rds:DescribeDBClusterParameterGroups
+                  - rds:DescribeDBClusterEndpoints
+                  - rds:DescribeDBClusterBacktracks
+                  - rds:DescribeDBClusterAutomatedBackups
+                  - rds:DescribeCertificates
+                  - rds:DescribeBlueGreenDeployments
+                  - rds:DescribeDBInstances
+                  - rds:DescribeDBLogFiles
+                  - rds:DescribeDBParameterGroups
+                  - rds:DescribeDBProxies
+                  - rds:DescribeDBParameters
+                  - rds:DescribeDBProxyEndpoints
+                  - rds:DescribeDBProxyTargetGroups
+                  - rds:DescribeEngineDefaultClusterParameters
+                  - rds:DescribeDBSubnetGroups
+                  - rds:DescribeDbSnapshotTenantDatabases
+                  - rds:DescribeDBSnapshots
+                  - rds:DescribeDBSnapshotAttributes
+                  - rds:DescribeDBShardGroups
+                  - rds:DescribeDBSecurityGroups
+                  - rds:DescribeDBRecommendations
+                  - rds:DescribeDBProxyTargets
+                  - rds:DescribeSourceRegions
+                  - rds:DescribeTenantDatabases
+                  - rds:DescribeValidDBInstanceModifications
+                  - rds:ListTagsForResource
+                  - rds:DownloadDBLogFilePortion
+                  - rds:DownloadCompleteDBLogFile
+                  - rds:DescribeRecommendations
+                  - rds:DescribeRecommendationGroups
+                  - rds:DescribeEvents
+                  - rds:DescribeEventCategories
+                  - rds:DescribeEngineDefaultParameters
+                  - rds:DescribeEventSubscriptions
+                  - rds:DescribeExportTasks
+                  - rds:DescribeGlobalClusters
+                  - rds:DescribeIntegrations
+                  - rds:DescribeReservedDBInstancesOfferings
+                  - rds:DescribeReservedDBInstances
+                  - rds:DescribeOrderableDBInstanceOptions
+                  - rds:DescribePendingMaintenanceActions
+                  - rds:DescribeOptionGroups
+                  - rds:DescribeOptionGroupOptions
+                Resource:
+                  - '*'
+
+# Lambda function to handle both planned and unplanned failovers.
+  DBFailoverLambda:
+    Type: AWS::Lambda::Function
+      # checkov:skip=CKV_AWS_116:Custom resource. No Dead Letter Queue required
+      # checkov:skip=CKV_AWS_117: Custom resource. inside VPC
+      # checkov:skip=CKV_AWS_115:Custom resource . https://github.com/bridgecrewio/checkov/issues/3637
+    DependsOn: DBFailoverLambdaRole
+    Properties:
+      Description: Lambda function framework to take any action for the global database manual planned or unplanned failover.
+      Handler: index.lambda_handler
+      Role: !GetAtt DBFailoverLambdaRole.Arn
+      Runtime: python3.8
+      Timeout: 600
+      Code:
+        ZipFile: |
+          import json
+          import string
+          import boto3
+          from boto3.dynamodb.types import TypeSerializer,TypeDeserializer
+
+          def populate_dashboard(event):
+                  
+            html_template = """<html>
+                  <body> 
+                  <br> 
+                  <h1 style="color:COLOR; text-align:center">STATUS</h1> 
+                  <br>
+                  </html>"""
+                  
+            globalDBIdentifier = event.get("globalDBIdentifier",None)
+            region  = event.get("region", None)
+                  
+            if globalDBIdentifier is  None or region is  None:
+              return html_template.replace("STATUS","Unable to determine the status").replace("COLOR","red")
+
+            try:
+              client = boto3.client("rds",region_name = region)
+              response = client.describe_global_clusters( GlobalClusterIdentifier=globalDBIdentifier)
+              for members in response['GlobalClusters'][0]['GlobalClusterMembers']:
+                if members['DBClusterArn'].split(":")[3] == region:
+                  if members['IsWriter'] :
+                    return html_template.replace("STATUS","Primary Cluster").replace("COLOR","green")
+                  else:
+                    return html_template.replace("STATUS","Secondary Cluster").replace("COLOR","green")
+            except:
+              return html_template.replace("STATUS","Failed to get current status").replace("COLOR","red")
+                                            
+
+          def lambda_handler(event, context):
+
+              if 'SOURCE' in event:
+                return populate_dashboard(event)
+
+              # dump the received event in json format
+              mymsg=json.dumps(event)
+              # Parse the json event to gather Event ID, cluster ARN, region for the cluster, and the clustername
+              # mymsg = event['detail']['Message']
+              eventid= event['detail']['EventID']
+              resourcename = event['resources'][0]
+              resourcename = resourcename.split(':')
+              regioname = resourcename[3]
+              cluster_name = resourcename[6]
+              # Only process event if the the global database failover completed
+              return { 'statusCode': 200, 'body': json.dumps('event processed')}
+          
+
+#Create the eventbridge rule. This rule triggers when a global database completes failover. Created if either "all" or "planned" features support is needed.
+  DBFailoverEBRule:
+    Type: AWS::Events::Rule
+    Properties: 
+      Description: Event Bridge rule to track RDS MySQL Database fail in this AZ
+      EventPattern:
+        source: 
+          - "aws.rds"
+        detail-type: 
+          - "RDS DB Cluster Event"
+        detail: 
+          EventCategories: 
+            - "availability"
+            - "failover"
+          EventID:
+            - "RDS-EVENT-0004"
+            - "RDS-EVENT-0006"
+            - "RDS-EVENT-0013"
+            - "RDS-EVENT-0031"
+      Targets: 
+      # Calling above lambda function and SNS topic as a target
+        - Arn: !GetAtt DBFailoverLambda.Arn
+          Id: "AGDLambdaTarget"
+        - Arn: !Ref SNSTopic
+          Id: "AGDEmailTarget"
+
+#Add the lambda permission so it can be invoked by the rule
+  DBFailoverEBRulePermission:
+    Type: AWS::Lambda::Permission
+    DependsOn: DBFailoverEBRule
+    Properties: 
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt DBFailoverLambda.Arn
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt DBFailoverEBRule.Arn
+
+
+
+
+Outputs:
+  ReplicaInstance:
+    Description: 'MySQL instance'
+    Value: !Ref ReplicaInstance
+    Export:
+      Name: !Sub '${AWS::StackName}-ReplicaInstance'

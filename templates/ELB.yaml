@@ -1,0 +1,91 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create ELBv2 for ProxySQL 
+Parameters:
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+    Description: The VPC ID to associate with the instance.
+  #AvailabilityZone:
+  #  Type: AWS::EC2::AvailabilityZone::Name
+  SubnetId:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: The ID of the subnet to associate with the instance.
+    ConstraintDescription: must be the ID of an existing subnet in the same VPC.
+  #TargetsID:
+  #  Type: List<AWS::EC2::Instance::Id>
+  #  Description: The ID of the targets.
+  #  ConstraintDescription: must be the ID of an existing instance.
+  EnvironmentType:
+    Description: "Specify the Environment type of the stack."
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - test
+      - prod
+  SecurityGroupIds:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    Description: The ID of the security groups to associate with the instance.
+
+
+
+Resources:
+#Creating a Load Balancer
+  ProxySQLELB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    # checkov:skip=CKV_AWS_26:Ensure that Elastic Load Balancer is configured to send logs to CloudWatch Logs
+    Properties:
+      Name: !Sub ELB-${AWS::StackName}
+      Subnets: !Ref SubnetId
+      SecurityGroups: !Ref SecurityGroupIds
+      Scheme: internal
+      Type: network
+      IpAddressType: ipv4
+      Tags:
+        - Key: Name
+          Value: !Sub ELB-${AWS::StackName}
+  # Creating a Target Group for ELB
+  ProxySQLTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPort: 6032
+      HealthyThresholdCount: 2
+      Name: !Sub ProxySQL-${AWS::StackName}
+      Port: 6033
+      Protocol: TCP
+      VpcId: !Ref VPCId
+      #Targets: 
+      # - Id: 
+      #    Ref: TargetsID
+      #  AvailabilityZone: All
+      #  #Id: String
+      #  Port: 6033
+
+  # Creating a Listener for ELB
+  ProxySQLListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ProxySQLTargetGroup
+      LoadBalancerArn: !Ref ProxySQLELB
+      Port: 3306
+      Protocol: TCP
+
+Outputs:
+  ProxySQLELB:
+    Description: The DNS name of the load balancer.
+    Value: !GetAtt ProxySQLELB.DNSName
+    Export:
+      Name: !Sub ProxySQL-
+      -${AWS::StackName}
+  ProxySQLTargetGroup:
+    Description: The ARN of the Target Group.
+    Value: !Ref ProxySQLTargetGroup
+    Export:
+      Name: !Sub ProxySQL-TargetGroup-${AWS::StackName}
+  ProxySQLListener:
+    Description: The ARN of the Listener.
+    Value: !Ref ProxySQLListener
+    Export:
+      Name: !Sub ProxySQL-Listener-${AWS::StackName}

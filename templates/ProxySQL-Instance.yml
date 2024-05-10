@@ -1,0 +1,159 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: ProxySQL for RDS Group replication solution 
+Parameters:
+  AvailabilityZone:
+    Type: AWS::EC2::AvailabilityZone::Name
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: The ID of the subnet to associate with the instance.
+    ConstraintDescription: must be the ID of an existing subnet in the same VPC.
+  EnvironmentType:
+    Description: "Specify the Environment type of the stack."
+    Type: String
+    Default: prod
+    AllowedValues:
+      - dev
+      - test
+      - prod
+  AmiID:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Description: "The ID of the AMI."
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-arm64-gp2
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: The name of an existing Amazon EC2 key pair in this region to use to SSH into the Amazon EC2 instances.
+  SecurityGroupIds:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    Description: The ID of the security groups to associate with the instance.
+    
+Mappings:
+  EnvironmentToInstanceType:
+    dev:
+      InstanceType: t4g.small
+    test:
+      InstanceType: t4g.small
+    prod:
+      InstanceType: m6g.large
+
+Resources:
+  ProxySQL:
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          InstallAndConfig:
+            - install_ProxySQLserverYum
+            - install_ProxySQLserver
+            - configure_ProxySQLserver_admin
+            - configure_ProxySQLserver
+        install_ProxySQLserverYum:
+          files:
+            /etc/yum.repos.d/proxysql.repo:
+              content: !Sub |
+                [proxysql_repo]
+                name=ProxySQL YUM repository
+                baseurl=https://repo.proxysql.com/ProxySQL/proxysql-2.6.x/centos/7/
+                gpgcheck=1
+                gpgkey=https://repo.proxysql.com/ProxySQL/proxysql-2.6.x/repo_pub_key
+                enabled=1
+              mode: '000444'
+              owner: root
+              group: root
+        install_ProxySQLserver:
+         packages:
+          yum:
+            proxysql: []
+            mariadb: []
+        configure_ProxySQLserver_admin:
+          files:
+            /etc/proxysql.cnf:
+              content: !Sub |
+                datadir="/var/lib/proxysql"
+                errorlog="/var/lib/proxysql/proxysql.log"
+
+                admin_variables=
+                {
+                        admin_credentials="admin:admin;radmin:radmin"
+                #       mysql_ifaces="127.0.0.1:6032;/tmp/proxysql_admin.sock"
+                        mysql_ifaces="0.0.0.0:6032"
+                #       refresh_interval=2000
+                        debug=true
+                }
+
+                mysql_variables=
+                {
+                        threads=4
+                        max_connections=2048
+                        default_query_delay=0
+                        default_query_timeout=36000000
+                        have_compress=true
+                        poll_timeout=2000
+                #       interfaces="0.0.0.0:6033;/tmp/proxysql.sock"
+                        interfaces="0.0.0.0:6033"
+                        default_schema="information_schema"
+                        stacksize=1048576
+                        server_version="5.5.30"
+                        connect_timeout_server=3000
+                # make sure to configure monitor username and password
+                # https://github.com/sysown/proxysql/wiki/Global-variables#mysql-monitor_username-mysql-monitor_password
+                        monitor_username="monitor"
+                        monitor_password="monitor"
+                        monitor_history=600000
+                        monitor_connect_interval=60000
+                        monitor_ping_interval=10000
+                        monitor_read_only_interval=1500
+                        monitor_read_only_timeout=500
+                        ping_interval_server_msec=120000
+                        ping_timeout_server=500
+                        commands_stats=true
+                        sessions_sort=true
+                        connect_retries_on_failure=10
+                }
+              mode: '000640'
+              owner: root
+              group: proxysql
+        configure_ProxySQLserver:
+          commands:
+            start_proxysql:
+              command: "sudo systemctl start proxysql"
+            enable_proxysql:
+              command: "sudo systemctl enable proxysql"
+          Service:
+            sysvinit:
+              proxysql:
+                enabled: true
+                ensureRunning: true
+    Properties:
+      Tags:    
+      - Key: Name
+        Value: !Sub ProxySQL-${AWS::StackName}
+      - Key: ProxySQL
+        Value: True
+      AvailabilityZone: !Ref AvailabilityZone
+      SubnetId: !Ref SubnetId
+      ImageId: !Ref AmiID
+      InstanceType:
+        !FindInMap [
+          EnvironmentToInstanceType,
+          !Ref EnvironmentType,
+          InstanceType,
+        ]
+      KeyName: !Ref KeyPairName
+      SecurityGroupIds: !Ref SecurityGroupIds
+      UserData:
+        # runs the cfn-init scripts
+        "Fn::Base64": !Sub |
+          #!/bin/bash -xe
+          # Get the latest CloudFormation package
+          yum update -y aws-cfn-bootstrap
+          # Start cfn-init
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource ProxySQL --configsets InstallAndConfig --region ${AWS::Region}
+          # Signal the status from cfn-init
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ProxySQL --region ${AWS::Region}
+    
+Outputs:
+  ProxySQLEC2ID:
+    Description: ProxySQL EC2 Instance Id.
+    Value: !Ref ProxySQL
+    Export:
+      Name: !Sub ProxySQL-EC2-ID-${AWS::StackName}

@@ -1,0 +1,45 @@
+## Amazon RDS for MySQL Immersion day labs Template
+## Infrastructure template for lab exercises
+##
+## Changelog:
+## 2024-03-20 - create parameter group 
+## Dependencies:
+## none
+##
+## License:
+## This sample code is made available under the MIT-0 license. See the LICENSE file.
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: Amazon RDS for MySQL Immersion day labs
+
+Resources:
+  ## Create DB instance parameter group for Group replication
+    InstanceParamsGR:
+      Type: "AWS::RDS::DBParameterGroup"
+      Properties:
+        DBParameterGroupName: group-replication-pg
+        Description: group-replication-pg
+        Family: mysql8.0
+        Parameters:
+          innodb_stats_persistent_sample_pages: 256
+          slow_query_log: 1
+          long_query_time: 1
+          log_output: FILE
+          binlog_format: ROW
+          read_only: 0
+          group_replication_group_name: 9510b991-99b4-11ee-8669-0a9258440a9f
+          rds.group_replication_enabled: 1
+          rds.custom_dns_resolution: 1
+          slave_preserve_commit_order: 1
+          #gtid-mode: on
+          #enforce_gtid_consistency: on
+
+        Tags:
+          - Key: Name
+            Value: group-replication-pg
+Outputs:
+  InstanceParamsGRName:
+    Description: 'param group name'
+    Value: !Ref InstanceParamsGR
+    Export:
+      Name: !Sub '${AWS::StackName}-InstanceParamsGRName'
