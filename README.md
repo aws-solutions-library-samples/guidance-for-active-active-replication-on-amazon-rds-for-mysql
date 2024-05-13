@@ -229,8 +229,8 @@ Here is a list of sample parameters along with their descriptions:
 
 In this section, we will deploy a [ProxySQL](https://proxysql.com/documentation/proxysql-configuration/) instance on Amazon EC2. For this solution, we will need to set up at least one ProxySQL instance using the CFN template [`ProxySQL-Instance.yml`](templates/ProxySQL-Instance.yml).
 
-| :exclamation:  For enhanced high availability, you can opt to deploy multiple ProxySQL instances across different availability zones by using the parameter *AvailabilityZone* in the CFN template (`ProxySQL-Instance.yml`). |
-|-----------------------------------------|
+> [!TIP]
+> For enhanced high availability, you can opt to deploy multiple ProxySQL instances across different availability zones by using the parameter *AvailabilityZone* in the CFN template (`ProxySQL-Instance.yml`).
 
 Here is a list of sample parameters along with their descriptions:
 
@@ -262,7 +262,8 @@ Here is a list of sample parameters along with their descriptions:
 
 In this section, we'll ensure that all the DB instances are in [Available](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/accessing-monitoring.html#Overview.DBInstance.Status) status.  
 
-**Note:** Before running the command, ensure to rename the parameter group (**`group-replication-pg`**) associated with your DB instances.
+> [!NOTE]
+> Before running the command, ensure to rename the parameter group (**`group-replication-pg`**) associated with your DB instances.
 
 ```bash
 aws rds describe-db-instances --query 'DBInstances[?contains(DBParameterGroups[].DBParameterGroupName,`group-replication-pg`)].[DBInstanceIdentifier,Endpoint.Address,DBInstanceStatus]'
@@ -295,8 +296,8 @@ In this section, we will establish active/active replication using the Group Rep
 
 1. Configure the [group_replication_group_seeds](https://dev.mysql.com/doc/refman/8.0/en/group-replication-system-variables.html#sysvar_group_replication_group_seeds). This script creates the group_replication_group_seeds list by querying for all DB instances that use the parameter group named **group-replication-pg** (replace with the name of your parameter group used with your DB instances). The output of this script will be a list of endpoints for all the DB instances that we will configure for active/active replication.
 
-| :exclamation:  If you used a different parameter group, replace the`Parameter Group Name` in the script. |
-|------------------------------------------------------------------------------------------------------------|
+> [!IMPORTANT]
+> If you used a different parameter group, replace the `Parameter Group Name` in the script.
 
 ```bash
 group_replication_group_seeds_list=""
@@ -390,16 +391,17 @@ Construct and execute the command with the parameters `--proxysqlhostlist` and `
 
   Example code snippet:
 
-    ```bash
+```bash
     ./configure_proxysql.sh --proxysqlhostlist "ip-1-1-1-231.us-east-1.compute.internal,ip-1-1-1-49.us-east-1.compute.internal" --mysqlhostlist "mysql1-instance-123.1234.us-        east-1.rds.amazonaws.com,mysql2-instance-123.1234.us-east-1.rds.amazonaws.com,mysql3-instance-123.1234.us-east-1.rds.amazonaws.com" --mysqluser AppDBAdmin --mysqlpassword       password123
-    ```
+```
 
 3. To confirm the ProxySQL configuration, connect using the application DB user and check if you can access the DB instances through ProxySQL's host DNS name.
 
-    ```bash
-    mysql -h [ProxySQL Host DNS Name] -u [mysql user]] -p[password]]-P6033 -e "select @@hostname,@@version"
-    ```
-**Note:**  We are now using ProxySQL's port number 6033 instead of the original MySQL port 3306.
+```bash
+        mysql -h [ProxySQL Host DNS Name] -u [mysql user]] -p[password]]-P6033 -e "select @@hostname,@@version"
+```
+> [!NOTE]
+> We are now using ProxySQL's port number 6033 instead of the original MySQL port 3306.
 
 Example code snippet:
 
