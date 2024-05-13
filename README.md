@@ -361,8 +361,8 @@ GRANT SELECT on performance_schema.* TO 'monitor'@'%';
 
 2. To configure ProxySQL to accept traffic from your applications and route it to DB instances, use the following script. For more information, refer to: [Group Replication Configuration](https://proxysql.com/documentation/group-replication-configuration/)
 
-| :exclamation:  This script need access to Port 6032 of the ProxySQL instances   |
-|------------------------------------------------------------------------------   |
+> [!NOTE]
+> This script need access to Port 6032 of the ProxySQL instances
 
 ```bash
 scripts/configure_proxysql.sh  --proxysqlhostlist [ProxySQL host list] --mysqlhostlist [RDS for MySQL instance list] --mysqlpass [mysql user password] --mysqluser [mysql user name]
