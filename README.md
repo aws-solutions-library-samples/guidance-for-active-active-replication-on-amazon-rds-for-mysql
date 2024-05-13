@@ -333,9 +333,9 @@ The script output should display at least three instances in the Group Replicati
 +---------------------------+--------------------------------------+-----------------+-------------+--------------+-------------+----------------+----------------------------+
 | CHANNEL_NAME              | MEMBER_ID                            | MEMBER_HOST     | MEMBER_PORT | MEMBER_STATE | MEMBER_ROLE | MEMBER_VERSION | MEMBER_COMMUNICATION_STACK |
 +---------------------------+--------------------------------------+-----------------+-------------+--------------+-------------+----------------+----------------------------+
-| group_replication_applier | 90cc446b-f4f0-11ee-b529-060d8cf35b59 | ip-123-4-5-6  |       3306 | ONLINE       | PRIMARY     | 8.0.35         | MySQL                      |
-| group_replication_applier | c658c21c-0249-11ef-bf28-028baf46ebdb | ip-123-4-5-7 |        3306 | ONLINE       | PRIMARY     | 8.0.35         | MySQL                      |
-| group_replication_applier | f614eee5-0249-11ef-a3e8-0a677df0b641 | ip-123-4-5-8 |        3306 | ONLINE       | PRIMARY     | 8.0.35         | MySQL                      |
+| group_replication_applier | 90cc446b-f4f0-11ee-b529-060d8cf35b59 | ip-123-4-5-6  |       3306  | ONLINE       | PRIMARY     | 8.0.35         | MySQL                      |
+| group_replication_applier | c658c21c-0249-11ef-bf28-028baf46ebdb | ip-123-4-5-7  |        3306 | ONLINE       | PRIMARY     | 8.0.35         | MySQL                      |
+| group_replication_applier | f614eee5-0249-11ef-a3e8-0a677df0b641 | ip-123-4-5-8  |        3306 | ONLINE       | PRIMARY     | 8.0.35         | MySQL                      |
 +---------------------------+--------------------------------------+-----------------+-------------+--------------+-------------+----------------+----------------------------+
 ```
 
@@ -385,11 +385,12 @@ Here is a list of sample parameters along with their descriptions:
     ```bash
     aws rds describe-db-instances --query 'DBInstances[?contains(DBParameterGroups[].DBParameterGroupName,`group-replication-pg`)].[DBInstanceIdentifier,Endpoint.Address]'
     ```
+Construct and execute the command with the parameters `--proxysqlhostlist` and `--mysqlhostlist`.
 
   Example code snippet:
 
     ```bash
-    ./configure_proxysql.sh --proxysqlhostlist "ip-1-1-1-231.us-east-1.compute.internal,ip-1-1-1-49.us-east-1.compute.internal" --mysqlhostlist "mysql1-instance-123.1234.us-east-1.rds.amazonaws.com,mysql2-instance-123.1234.us-east-1.rds.amazonaws.com,mysql3-instance-123.1234.us-east-1.rds.amazonaws.com" --mysqluser AppDBAdmin --mysqlpassword password123
+    ./configure_proxysql.sh --proxysqlhostlist "ip-1-1-1-231.us-east-1.compute.internal,ip-1-1-1-49.us-east-1.compute.internal" --mysqlhostlist "mysql1-instance-123.1234.us-        east-1.rds.amazonaws.com,mysql2-instance-123.1234.us-east-1.rds.amazonaws.com,mysql3-instance-123.1234.us-east-1.rds.amazonaws.com" --mysqluser AppDBAdmin --mysqlpassword       password123
     ```
 
 3. To confirm the ProxySQL configuration, connect using the application DB user and check if you can access the DB instances through ProxySQL's host DNS name.
@@ -481,8 +482,8 @@ With the above steps, you have successfully uninstalled the Active/Active replic
 
 The following individuals and organizations contributed to this document:
 
-**Baruch Assif Osoveskiy**, Senior Data Solutions Architect, Amazon Web Services
-**Vijay Karumajji**, Principal DB Specialist Solutions Architect, Amazon Web Services
+    **Baruch Assif Osoveskiy**, Senior Data Solutions Architect, Amazon Web Services
+    **Vijay Karumajji**, Principal DB Specialist Solutions Architect, Amazon Web Services
 
 ## Notices
 
