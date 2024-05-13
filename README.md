@@ -392,22 +392,22 @@ Construct and execute the command with the parameters `--proxysqlhostlist` and `
   Example code snippet:
 
 ```bash
-    ./configure_proxysql.sh --proxysqlhostlist "ip-1-1-1-231.us-east-1.compute.internal,ip-1-1-1-49.us-east-1.compute.internal" --mysqlhostlist "mysql1-instance-123.1234.us-        east-1.rds.amazonaws.com,mysql2-instance-123.1234.us-east-1.rds.amazonaws.com,mysql3-instance-123.1234.us-east-1.rds.amazonaws.com" --mysqluser AppDBAdmin --mysqlpassword       password123
+./configure_proxysql.sh --proxysqlhostlist "ip-1-1-1-231.us-east-1.compute.internal,ip-1-1-1-49.us-east-1.compute.internal" --mysqlhostlist "mysql1-instance-123.1234.us-        east-1.rds.amazonaws.com,mysql2-instance-123.1234.us-east-1.rds.amazonaws.com,mysql3-instance-123.1234.us-east-1.rds.amazonaws.com" --mysqluser AppDBAdmin --mysqlpassword       password123
 ```
 
 3. To confirm the ProxySQL configuration, connect using the application DB user and check if you can access the DB instances through ProxySQL's host DNS name.
 
-```bash
-        mysql -h [ProxySQL Host DNS Name] -u [mysql user]] -p[password]]-P6033 -e "select @@hostname,@@version"
-```
+    ```bash
+    mysql -h [ProxySQL Host DNS Name] -u [mysql user]] -p[password]]-P6033 -e "select @@hostname,@@version"
+    ```
 > [!NOTE]
 > We are now using ProxySQL's port number 6033 instead of the original MySQL port 3306.
 
 Example code snippet:
 
-    ```bash
-    mysql -h ip-1-1-1-231.us-east-1.compute.internal -uAppDBAdmin -ppassword123 -P6033 -e "select @@hostname,@@version"
-    ```
+```bash
+mysql -h ip-1-1-1-231.us-east-1.compute.internal -uAppDBAdmin -ppassword123 -P6033 -e "select @@hostname,@@version"
+```
 
 ### 9. Configure Elastic Load Balancing: Network Load Balancer
 
