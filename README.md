@@ -191,8 +191,8 @@ aws rds modify-db-instance --db-instance-identifier mysql1 --db-parameter-group-
 
 5. [Restart the DB instance](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_RebootInstance.html) to apply the configuration changes.
 
-| :exclamation:  It's important not to skip this step; restarting is necessary to apply the changes made to the DB instance|
-|------------------------------------------------------------------------------------------------------------|
+> [!IMPORTANT]
+> It's important not to skip this step; restarting is necessary to apply the changes made to the DB instance
 
 ### 3. Deploying CloudFormation Stack for creating RDS for MySQL DB instances for Active/Active Replication
 
