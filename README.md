@@ -200,7 +200,8 @@ To set up Group Replication for active/active replication on RDS for MySQL, it's
 
 In this section, we will create RDS for MySQL DB instances to configure Group Replication. If you already have an existing RDS for MySQL DB instance, ensure that you have created a DB snapshot. This snapshot will be utilized to create two additional DB instances using the CFN template [RDS-MySQL-DB-Instance.yml](templates/RDS-MySQL-DB-Instance.yml).
 
-**Note**: If you're starting from scratch with no existing DB instance, you'll need to run the stack three times to create three RDS for MySQL DB instances.
+> [!NOTE] 
+> If you're starting from scratch with no existing DB instance, you'll need to run the stack three times to create three RDS for MySQL DB instances.
 
 Here is a list of sample parameters along with their descriptions:
 
