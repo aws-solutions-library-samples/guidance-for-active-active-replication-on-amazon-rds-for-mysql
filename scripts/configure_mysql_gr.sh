@@ -104,8 +104,8 @@ mysql \
   --user="$user" \
   --password="$password" \
   --database="$database" \
-  --host="$host"  \
-  --execute=$SQLCOMMAND
+  --host="$mysqlinstance"  \
+  --execute="$SQLCOMMAND"
 }
 
 createUser(){
@@ -135,7 +135,7 @@ setBinlogRetention(){
   --user="$user" \
   --password="$password" \
   --database="$database" \
-  --host="$host"  \
+  --host="$mysqlinstance"  \
   --execute="call mysql.rds_set_configuration('binlog retention hours',168);"
 }
 
@@ -144,7 +144,7 @@ confirmReplication(){
   --user="$user" \
   --password="$password" \
   --database="$database" \
-  --host="$host"  \
+  --host="$mysqlinstance"  \
   --execute="select * from performance_schema.replication_group_members where MEMBER_STATE = 'ONLINE';"
 }
 
@@ -162,25 +162,28 @@ get_current_dir
 
 
 # Perform the desired actions based on the provided flags and arguments
-IFS=","
+# Fix hostlist format
+hostlist=${hostlist//,/  }
 i=1 
 for insatnce in $hostlist; do
-    host=$insatnce
-    echo "the next Host is $host"
+    #workaroud naming issues
+    mysqlinstance=$insatnce
+    echo "the next Host is $mysqlinstance"
     createUser
     createChannel
     setBinlogRetention
     if (( $i == 1 ))
     then
-      echo "startReplication Host is $host"
+      echo "startReplication Host is $mysqlinstance"
       startReplication  
     else
-      echo "addReplication Host is $host"
+      echo "addReplication Host is $mysqlinstance"
       addReplication
     fi
     ((i++))
 done
+
 # Test replication instance- selecting one of the replicatation instances and counting the number of active node 
-    confirmReplication
+confirmReplication
 
 echo "Done"

@@ -192,7 +192,9 @@ handle_options "$@"
 test_input
 
 # Perform the desired actions based on the provided flags and arguments
-IFS=","
+#fix the proxysqlhostlist list and mysqlhostlist 
+proxysqlhostlist=${proxysqlhostlist//,/  }
+mysqlhostlist=${mysqlhostlist//,/  }
 for proxysqlhost in $proxysqlhostlist; do
     echo "ProxySQL is $proxysqlhost"
     echo "clean hostgroups"
