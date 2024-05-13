@@ -42,7 +42,6 @@ Parameters:
   RDSKMSCMK:
     Type: String
     Description: 'The ARN of the AWS KMS key thats used to encrypt the DB instance if '
-    Default: AWS::NoValue
 
   DBName:
     Description: 'Database Name - must start with a letter. Only numbers, letters, and _ accepted. max length 64 characters'
@@ -108,6 +107,11 @@ Parameters:
     Type: String
     Default: 'user@mail.com'
     MinLength: '1'
+
+  ReservedConcurrentExecutions:
+    Description: 'ReservedConcurrentExecutions for notification lambda'
+    Type: Number
+    Default: 0
 
 
 #meta  
@@ -181,11 +185,11 @@ Resources:
     # checkov:skip=CKV_AWS_157:if Prod will have MAZ
     # checkov:skip=CKV_AWS_16:this is the default 
     # checkov:skip=CKV_AWS_161:Custom resource. no need IAM auto can be update later by the user 
-    # checkov:skip=CKV_AWS_118:Custom resource user can control enhanced monitoring 
+    # checkov:skip=CKV_AWS_118:Custom resource user can control enhanced monitoring       
     Properties:
       DBSnapshotIdentifier: !If [IsUseDBSnapshot, !Ref DBSnapshotName, !Ref "AWS::NoValue"]
       AllocatedStorage: !If [IsUseDBSnapshot, !Ref 'AWS::NoValue', !Ref DBAllocatedStorage]
-      KmsKeyId: !If [IsNotUseDBSnapshot, !Ref RDSKMSCMK, !Ref 'AWS::NoValue']
+      KmsKeyId: !Ref RDSKMSCMK
       AllowMajorVersionUpgrade: false
       AutoMinorVersionUpgrade: !If [IsProd, 'false', 'true']
       BackupRetentionPeriod: !If [IsProd, 35, 7]
@@ -213,6 +217,7 @@ Resources:
           Value: !Sub replicainstance-${AWS::StackName}
         - Key: GroupReplicationName
           Value: !Ref GroupReplicationName
+      EnableCloudwatchLogsExports: ["error","slowquery"]
 
 
 # event bridge to handle unplanned failover
@@ -220,7 +225,8 @@ Resources:
   SNSTopic: 
     Type: AWS::SNS::Topic
     # checkov:skip=CKV_AWS_26:enc by default 
-    Properties: 
+    Properties:
+      KmsMasterKeyId: alias/aws/sns
       Subscription: 
         - Endpoint: !Ref NotificationEmailAddress
           Protocol: "email"
@@ -230,6 +236,11 @@ Resources:
 
   DBFailoverLambdaRole:
     Type: AWS::IAM::Role
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: "Role is do not have any change capabilities only metadata access to RDS instance"
     Properties:
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
@@ -325,7 +336,8 @@ Resources:
                   - rds:DescribeOptionGroups
                   - rds:DescribeOptionGroupOptions
                 Resource:
-                  - '*'
+                  - !Sub arn:aws:rds:${AWS::Region}:${AWS::AccountId}:*
+                  - !Sub arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:*
 
 # Lambda function to handle both planned and unplanned failovers.
   DBFailoverLambda:
@@ -333,9 +345,15 @@ Resources:
       # checkov:skip=CKV_AWS_116:Custom resource. No Dead Letter Queue required
       # checkov:skip=CKV_AWS_117: Custom resource. inside VPC
       # checkov:skip=CKV_AWS_115:Custom resource . https://github.com/bridgecrewio/checkov/issues/3637
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "Lambda functions do not need any access to VPN no connectionn to any VPC resources"
     DependsOn: DBFailoverLambdaRole
     Properties:
-      Description: Lambda function framework to take any action for the global database manual planned or unplanned failover.
+      ReservedConcurrentExecutions: !Ref ReservedConcurrentExecutions
+      Description: Lambda function framework to take any action for the database manual planned or unplanned failover.
       Handler: index.lambda_handler
       Role: !GetAtt DBFailoverLambdaRole.Arn
       Runtime: python3.8
@@ -356,16 +374,16 @@ Resources:
                   <br>
                   </html>"""
                   
-            globalDBIdentifier = event.get("globalDBIdentifier",None)
+            DBIdentifier = event.get("DBIdentifier",None)
             region  = event.get("region", None)
                   
-            if globalDBIdentifier is  None or region is  None:
+            if DBIdentifier is  None or region is  None:
               return html_template.replace("STATUS","Unable to determine the status").replace("COLOR","red")
 
             try:
               client = boto3.client("rds",region_name = region)
-              response = client.describe_global_clusters( GlobalClusterIdentifier=globalDBIdentifier)
-              for members in response['GlobalClusters'][0]['GlobalClusterMembers']:
+              response = client.describe_instances( InstanceIds=DBIdentifier)
+              for members in response['Instances'][0]['InstanceId']:
                 if members['DBClusterArn'].split(":")[3] == region:
                   if members['IsWriter'] :
                     return html_template.replace("STATUS","Primary Cluster").replace("COLOR","green")
@@ -382,7 +400,7 @@ Resources:
 
               # dump the received event in json format
               mymsg=json.dumps(event)
-              # Parse the json event to gather Event ID, cluster ARN, region for the cluster, and the clustername
+              # Parse the json event to gather Event ID, cluster ARN, region for the cluster, and the instancename
               # mymsg = event['detail']['Message']
               eventid= event['detail']['EventID']
               resourcename = event['resources'][0]

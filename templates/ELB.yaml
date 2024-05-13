@@ -17,7 +17,7 @@ Parameters:
   EnvironmentType:
     Description: "Specify the Environment type of the stack."
     Type: String
-    Default: dev
+    Default: prod
     AllowedValues:
       - dev
       - test
@@ -32,7 +32,15 @@ Resources:
 #Creating a Load Balancer
   ProxySQLELB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "Resource found with an explicit name, this disallows updates that require replacement of this resource"
+          - id: W52
+            reason: "access log not relevant for sql traffic"
     # checkov:skip=CKV_AWS_26:Ensure that Elastic Load Balancer is configured to send logs to CloudWatch Logs
+    # checkov:skip=CKV_AWS_91:access log not relevant for sql traffic 
     Properties:
       Name: !Sub ELB-${AWS::StackName}
       Subnets: !Ref SubnetId
@@ -77,8 +85,7 @@ Outputs:
     Description: The DNS name of the load balancer.
     Value: !GetAtt ProxySQLELB.DNSName
     Export:
-      Name: !Sub ProxySQL-
-      -${AWS::StackName}
+      Name: !Sub ProxySQL-${AWS::StackName}
   ProxySQLTargetGroup:
     Description: The ARN of the Target Group.
     Value: !Ref ProxySQLTargetGroup
