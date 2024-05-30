@@ -466,6 +466,10 @@ mysql -h ELB-ELB1-12342423.elb.us-east-1.amazonaws.com -u AppDBAdmin -ppassword1
 
 ## Cleanup
 
+> [!NOTE]
+> Before deleting the RDS instance you need to disable DeletionProtection on the RDS instances else deleting the stack will end with an Error.
+
+
 To uninstall, you must delete all the AWS CloudFormation stacks (`RDS-MySQL-DB-parameter-group.yml`, `RDS-MySQL-DB-Instance.yml`, `ProxySQL-Instance.yml` and `ProxySQL-ELB.yaml`) that were created as a result of the Active/Active replication solution.
 
 Determine whether the AWS Command Line Interface (AWS CLI) is available in your environment. For installation instructions, refer to [What Is the AWS Command Line Interface in the AWS CLI User Guide](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html). After confirming that the AWS CLI is available, use the following command and provide --stackname
