@@ -245,7 +245,7 @@ Here is a list of sample parameters along with their descriptions:
 
 ### 5. Deploying the CloudFormation Stack for Elastic Load Balancing (ELB)
 
-In this section, we'll set up the [ELB](https://aws.amazon.com/elasticloadbalancing/) by deploying the CloudFormation template [`ProxySQL-ELB.yml`](templates/ProxySQL-ELB.yml).
+In this section, we'll set up the [ELB](https://aws.amazon.com/elasticloadbalancing/) by deploying the CloudFormation template [`ELB.yml`](templates/ELB.yml).
 
 Here is a list of sample parameters along with their descriptions:
 
