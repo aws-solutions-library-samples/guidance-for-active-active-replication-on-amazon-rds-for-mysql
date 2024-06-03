@@ -319,13 +319,13 @@ aws rds modify-db-parameter-group --db-parameter-group-name (Parameter Group nam
 | --hostlist| List of all DB instance endpoints with comma separated  | **mysql1-instance-****.****.us-east-1.rds.amazonaws.com`,`mysql2-instance-****.****.rds.amazonaws.com`,`mysql3-instance-****.****.us-east-1.rds.amazonaws.com**   |
 
 ```bash
-/scripts/configure_mysql_gr.sh --user [mysql_user] --password [mysql_user_password] --hostlist [list od DB instance endpoints] 
+./scripts/configure_mysql_gr.sh --user [mysql_user] --password [mysql_user_password] --hostlist [list od DB instance endpoints] 
 ```
 
 Example code snippet:
 
 ```bash
-/scripts/configure_mysql_gr.sh --user admin --password Aa123456 --hostlist "mysql1-instance-****.****.us-east-1.rds.amazonaws.com,mysql2-instance-**.****.rds.amazonaws.com,mysql3-instance-****.****.us-east-1.rds.amazonaws.com"
+./scripts/configure_mysql_gr.sh --user admin --password Aa123456 --hostlist "mysql1-instance-****.****.us-east-1.rds.amazonaws.com,mysql2-instance-**.****.rds.amazonaws.com,mysql3-instance-****.****.us-east-1.rds.amazonaws.com"
 ```
 
 The script output should display at least three instances in the Group Replication with the MEMBER_STATE as ONLINE and MEMBER_ROLE as PRIMARY.
@@ -364,7 +364,7 @@ GRANT SELECT on performance_schema.* TO 'monitor'@'%';
 > This script need access to Port 6032 of the ProxySQL instances
 
 ```bash
-scripts/configure_proxysql.sh  --proxysqlhostlist [ProxySQL host list] --mysqlhostlist [RDS for MySQL instance list] --mysqlpass [mysql user password] --mysqluser [mysql user name]
+./scripts/configure_proxysql.sh  --proxysqlhostlist [ProxySQL host list] --mysqlhostlist [RDS for MySQL instance list] --mysqlpass [mysql user password] --mysqluser [mysql user name]
 ```
 Here is a list of sample parameters along with their descriptions:
 
@@ -391,7 +391,7 @@ Construct and execute the command with the parameters `--proxysqlhostlist` and `
   Example code snippet:
 
 ```bash
-./configure_proxysql.sh --proxysqlhostlist "ip-1-1-1-231.us-east-1.compute.internal,ip-1-1-1-49.us-east-1.compute.internal" --mysqlhostlist "mysql1-instance-123.1234.us-        east-1.rds.amazonaws.com,mysql2-instance-123.1234.us-east-1.rds.amazonaws.com,mysql3-instance-123.1234.us-east-1.rds.amazonaws.com" --mysqluser AppDBAdmin --mysqlpassword       password123
+./scripts/configure_proxysql.sh --proxysqlhostlist "ip-1-1-1-231.us-east-1.compute.internal,ip-1-1-1-49.us-east-1.compute.internal" --mysqlhostlist "mysql1-instance-123.1234.us-        east-1.rds.amazonaws.com,mysql2-instance-123.1234.us-east-1.rds.amazonaws.com,mysql3-instance-123.1234.us-east-1.rds.amazonaws.com" --mysqluser AppDBAdmin --mysqlpassword       password123
 ```
 
 3. To confirm the ProxySQL configuration, connect using the application DB user and check if you can access the DB instances through ProxySQL's host DNS name.
@@ -466,11 +466,10 @@ mysql -h ELB-ELB1-12342423.elb.us-east-1.amazonaws.com -u AppDBAdmin -ppassword1
 
 ## Cleanup
 
+To uninstall, you must delete all the AWS CloudFormation stacks (`RDS-MySQL-DB-parameter-group.yml`, `RDS-MySQL-DB-Instance.yml`, `ProxySQL-Instance.yml` and `ProxySQL-ELB.yaml`) that were created as a result of the Active/Active replication solution.
+
 > [!NOTE]
 > Before deleting the RDS instance you need to disable DeletionProtection on the RDS instances else deleting the stack will end with an Error.
-
-
-To uninstall, you must delete all the AWS CloudFormation stacks (`RDS-MySQL-DB-parameter-group.yml`, `RDS-MySQL-DB-Instance.yml`, `ProxySQL-Instance.yml` and `ProxySQL-ELB.yaml`) that were created as a result of the Active/Active replication solution.
 
 Determine whether the AWS Command Line Interface (AWS CLI) is available in your environment. For installation instructions, refer to [What Is the AWS Command Line Interface in the AWS CLI User Guide](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html). After confirming that the AWS CLI is available, use the following command and provide --stackname
 
