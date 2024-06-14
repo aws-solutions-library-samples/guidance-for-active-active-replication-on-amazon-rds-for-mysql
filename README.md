@@ -120,7 +120,7 @@ We can configure active/active cluster from scratch or migrate an existing Amazo
 1. Clone this git repository.
 
     ```bash
-    git clone git@ssh.gitlab.aws.dev:db-ssa/rdsmysql-groupreplicaton.git
+    git clone https://github.com/aws-solutions-library-samples/guidance-for-active-active-replication-on-amazon-rds-for-mysql.git
     ```
 
 ### 2. Creating a DB Parameter Group Configured for Group Replication
