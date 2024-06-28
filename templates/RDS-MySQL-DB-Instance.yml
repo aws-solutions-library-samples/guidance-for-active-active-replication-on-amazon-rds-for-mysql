@@ -13,7 +13,7 @@
 
 AWSTemplateFormatVersion: '2010-09-09'
 #Transform: 'AWS::LanguageExtensions'
-Description: 'CloudFormation Template to create RDS MySQL DB Instance'
+Description: 'CloudFormation Template to create RDS MySQL DB Instance (SO9442)'
 
 # Parameters 
 Parameters:
