@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: ProxySQL for RDS Group replication solution 
+Description: ProxySQL for RDS Group replication solution (SO9442)
 Parameters:
   AvailabilityZone:
     Type: AWS::EC2::AvailabilityZone::Name
